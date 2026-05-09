@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🍱 お弁当管理</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --primary: #ff6b35;
+  --primary-light: #fff3ee;
+  --bg: #faf9f7;
+  --card: #ffffff;
+  --text: #2d2d2d;
+  --text-light: #888;
+  --border: #eee;
+  --success: #4caf50;
+  --line-green: #06C755;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  background: var(--bg); color: var(--text);
+  max-width: 480px; margin: 0 auto;
+  padding: 0 0 100px; min-height: 100vh; overflow-x: hidden;
+}
+
+/* Setup Screen */
+.setup-screen {
+  min-height: 100vh; padding: 40px 20px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.setup-screen .logo { font-size: 60px; margin-bottom: 12px; }
+.setup-screen h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.setup-screen .subtitle { font-size: 14px; color: var(--text-light); margin-bottom: 30px; }
+.setup-step {
+  background: var(--card); border-radius: 16px; padding: 20px;
+  box-shadow: var(--shadow); width: 100%; margin-bottom: 14px;
+}
+.setup-step .step-num {
+  display: inline-block; background: var(--primary); color: white;
+  width: 26px; height: 26px; border-radius: 50%; text-align: center;
+  line-height: 26px; font-size: 13px; font-weight: 700; margin-right: 8px;
+}
+.setup-step .step-title { font-size: 15px; font-weight: 700; display: inline; }
+.setup-step .step-desc { font-size: 13px; color: var(--text-light); line-height: 1.7; margin-top: 10px; }
+.setup-step .step-desc a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.setup-step .step-desc code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.setup-input {
+  width: 100%; padding: 14px; border: 2px solid var(--border);
+  border-radius: 12px; font-size: 14px; outline: none; margin-top: 10px;
+}
+.setup-input:focus { border-color: var(--primary); }
+.setup-btn {
+  width: 100%; padding: 16px; background: var(--primary); color: white;
+  border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
+  cursor: pointer; margin-top: 20px;
+}
+.setup-btn:active { background: #e85d26; }
+.setup-btn:disabled { background: #ccc; }
+.setup-or { text-align: center; color: var(--text-light); font-size: 13px; margin: 10px 0; }
+.setup-skip { background: none; border: none; color: var(--text-light); font-size: 13px; cursor: pointer; text-decoration: underline; margin-top: 10px; }
+.setup-error { color: #e74c3c; font-size: 13px; margin-top: 8px; display: none; }
+
+/* Sync Status */
+.sync-status { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+.sync-dot.online { background: var(--success); }
+.sync-dot.syncing { background: #ffc107; animation: pulse 1s infinite; }
+.sync-dot.offline { background: #e74c3c; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, var(--primary), #e85d26);
+  color: white; padding: 20px 16px 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 20px; font-weight: 700; }
+.header-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+.header-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.header-actions button {
+  background: rgba(255,255,255,0.2); border: none; color: white;
+  padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+}
+.header-actions button:active { background: rgba(255,255,255,0.35); }
+.header-actions .line-btn { background: var(--line-green); }
+.header-actions .line-btn:active { background: #05a847; }
+.header-actions .week-btn { background: rgba(255,255,255,0.35); }
+
+.summary-section {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 16px;
+}
+.summary-card {
+  background: var(--card); border-radius: 14px;
+  padding: 14px; box-shadow: var(--shadow);
+}
+.summary-card .label { font-size: 11px; color: var(--text-light); margin-bottom: 4px; }
+.summary-card .value { font-size: 22px; font-weight: 700; color: var(--primary); }
+.summary-card .count { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+.calendar-section { padding: 0 16px; margin-bottom: 16px; }
+.calendar-card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-nav button {
+  background: none; border: 1px solid var(--border);
+  width: 36px; height: 36px; border-radius: 50%; font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text);
+}
+.cal-nav button:active { background: var(--primary-light); }
+.cal-nav .month-label { font-size: 16px; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-header { text-align: center; font-size: 11px; color: var(--text-light); padding: 4px 0 8px; font-weight: 600; }
+.cal-header:first-child { color: #e74c3c; }
+.cal-header:last-child { color: #3498db; }
+.cal-day {
+  text-align: center; padding: 6px 2px; border-radius: 10px; cursor: pointer;
+  min-height: 44px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; transition: background 0.15s;
+}
+.cal-day:active { background: var(--primary-light); }
+.cal-day.empty { pointer-events: none; }
+.cal-day .day-num { font-size: 14px; font-weight: 500; line-height: 1; }
+.cal-day.today .day-num {
+  background: var(--primary); color: white;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-day.sunday .day-num { color: #e74c3c; }
+.cal-day.saturday .day-num { color: #3498db; }
+.cal-day .day-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 3px; }
+.cal-day .day-dot.type-1 { background: var(--primary); }
+.cal-day .day-dot.type-2 { background: var(--success); }
+.cal-day .day-dot.type-3 { background: #9c27b0; }
+.cal-day .day-dot.type-0 { background: #999; }
+
+.week-section { padding: 0 16px; margin-bottom: 16px; }
+.section-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.week-list { display: flex; flex-direction: column; gap: 8px; }
+.week-item {
+  background: var(--card); border-radius: 12px; padding: 14px 16px;
+  box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between;
+}
+.week-item .left { display: flex; align-items: center; gap: 12px; }
+.week-item .date-badge {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700;
+}
+.week-item .date-badge.type-1 { background: #fff3ee; color: var(--primary); }
+.week-item .date-badge.type-2 { background: #e8f5e9; color: var(--success); }
+.week-item .date-badge.type-3 { background: #f3e5f5; color: #9c27b0; }
+.week-item .date-badge.type-0 { background: #f0f0f0; color: #999; }
+.week-item .date-badge .d { font-size: 18px; line-height: 1; }
+.week-item .date-badge .dow { font-size: 9px; margin-top: 1px; }
+.week-item .info .bento-type { font-size: 14px; font-weight: 600; }
+.week-item .info .bento-user { font-size: 11px; color: var(--text-light); margin-top: 1px; }
+.week-item .price { font-size: 16px; font-weight: 700; color: var(--primary); }
+.week-item .delete-btn {
+  background: none; border: none; color: #ccc;
+  font-size: 18px; padding: 4px 0 4px 12px; cursor: pointer;
+}
+.week-item .delete-btn:active { color: #e74c3c; }
+
+/* LINE Section */
+.line-section { padding: 0 16px; margin-bottom: 16px; }
+.line-card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+.line-share-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px; border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 700; cursor: pointer; width: 100%;
+}
+.line-share-btn:active { transform: scale(0.98); }
+.line-share-btn.green { background: var(--line-green); color: white; }
+
+/* Modal */
+.modal-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white; width: 100%; max-width: 480px;
+  border-radius: 20px 20px 0 0; padding: 20px 20px 36px;
+  animation: slideUp 0.3s ease; max-height: 92vh; overflow-y: auto;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+.modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.modal .modal-date { font-size: 13px; color: var(--text-light); margin-bottom: 16px; }
+.modal .user-select { display: flex; gap: 8px; margin-bottom: 16px; }
+.modal .user-select button {
+  flex: 1; padding: 10px; border: 2px solid var(--border); background: white;
+  border-radius: 12px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.modal .user-select button.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.bento-options { display: flex; flex-direction: column; gap: 10px; }
+.bento-option {
+  display: flex; align-items: center; padding: 14px;
+  border: 2px solid var(--border); border-radius: 14px;
+  cursor: pointer; transition: all 0.2s; background: white;
+}
+.bento-option:active { transform: scale(0.98); }
+.bento-option.selected { border-color: var(--primary); background: var(--primary-light); }
+.bento-option .emoji { font-size: 26px; margin-right: 12px; }
+.bento-option .opt-info { flex: 1; }
+.bento-option .opt-name { font-size: 14px; font-weight: 600; }
+.bento-option .opt-desc { font-size: 11px; color: var(--text-light); margin-top: 1px; }
+.bento-option .opt-price { font-size: 16px; font-weight: 700; color: var(--primary); }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.modal-actions button {
+  flex: 1; padding: 14px; border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.btn-cancel { background: #f0f0f0; color: var(--text); }
+.btn-save { background: var(--primary); color: white; }
+.btn-save:active { background: #e85d26; }
+.btn-delete-entry {
+  background: none; border: none; color: #e74c3c; font-size: 13px;
+  cursor: pointer; margin-top: 10px; text-align: center; width: 100%; padding: 8px;
+}
+
+/* Week Batch Modal */
+.batch-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.batch-row:last-child { border-bottom: none; }
+.batch-date {
+  width: 60px; font-size: 14px; font-weight: 600; flex-shrink: 0;
+}
+.batch-date .batch-dow { font-size: 11px; color: var(--text-light); font-weight: 400; }
+.batch-select {
+  flex: 1; padding: 10px; border: 2px solid var(--border); border-radius: 10px;
+  font-size: 13px; background: white; color: var(--text);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px; outline: none;
+}
+.batch-select:focus { border-color: var(--primary); }
+.batch-price { width: 50px; text-align: right; font-size: 14px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+.batch-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0 0; margin-top: 4px; border-top: 2px solid var(--border);
+  font-size: 16px; font-weight: 700;
+}
+.batch-total .total-price { color: var(--primary); font-size: 20px; }
+
+/* Name Edit */
+.name-edit-section { padding: 0 16px; margin-bottom: 16px; }
+.name-edit-card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+.name-inputs { display: flex; gap: 10px; }
+.name-input-group { flex: 1; }
+.name-input-group label { font-size: 11px; color: var(--text-light); display: block; margin-bottom: 4px; }
+.name-input-group input {
+  width: 100%; padding: 8px 12px; border: 2px solid var(--border);
+  border-radius: 8px; font-size: 14px; outline: none;
+}
+.name-input-group input:focus { border-color: var(--primary); }
+
+.legend { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-light); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.toast {
+  position: fixed; bottom: 30px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #333; color: white; padding: 12px 24px; border-radius: 30px;
+  font-size: 14px; font-weight: 600; z-index: 300;
+  transition: transform 0.3s ease; white-space: nowrap; max-width: 90%; text-align: center;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+.settings-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.settings-item:last-child { border-bottom: none; }
+.settings-item .si-label { font-weight: 600; }
+.settings-item .si-value { color: var(--text-light); font-size: 13px; }
+.settings-item button {
+  background: var(--primary-light); color: var(--primary);
+  border: none; padding: 6px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen" class="setup-screen" style="display:none;">
+  <div class="logo">🍱</div>
+  <h1>お弁当管理</h1>
+  <div class="subtitle">ふたりで使える共有アプリ</div>
+  <div class="setup-step">
+    <span class="step-num">1</span><div class="step-title">Firebaseプロジェクトを作成</div>
+    <div class="step-desc"><a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a> を開く<br>→「プロジェクトを作成」→ アナリティクスは「オフ」でOK</div>
+  </div>
+  <div class="setup-step">
+    <span class="step-num">2</span><div class="step-title">Realtime Databaseを作成</div>
+    <div class="step-desc">左メニュー「構築」→「Realtime Database」→「データベースを作成」<br>→「テストモードで開始」を選択</div>
+  </div>
+  <div class="setup-step">
+    <span class="step-num">3</span><div class="step-title">データベースURLを貼り付け</div>
+    <div class="step-desc">データベース画面上部のURLをコピー<br>（例: <code>https://xxxx-default-rtdb.firebaseio.com</code>）</div>
+    <input type="url" class="setup-input" id="setupDbUrl" placeholder="https://xxxxx.firebaseio.com">
+    <div class="setup-error" id="setupError"></div>
+  </div>
+  <div class="setup-step">
+    <span class="step-num">4</span><div class="step-title">ルームIDを決める</div>
+    <div class="step-desc">ふたりで同じIDを入力してください。</div>
+    <input type="text" class="setup-input" id="setupRoomId" placeholder="例: futari123" maxlength="20">
+  </div>
+  <button class="setup-btn" id="setupBtn" onclick="completeSetup()">アプリを始める</button>
+  <div class="setup-or">または</div>
+  <button class="setup-skip" onclick="skipSetup()">オフラインで使う（共有なし）</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+  <div class="header">
+    <h1>🍱 お弁当管理</h1>
+    <div class="header-sub">ふたりのお弁当記録</div>
+    <div class="sync-status" id="syncStatus">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncText">オフライン</span>
+    </div>
+    <div class="header-actions">
+      <button class="week-btn" onclick="openBatchModal()">📅 週まとめ入力</button>
+      <button class="line-btn" onclick="shareWeekToLine()">💬 LINEで送る</button>
+      <button onclick="toggleNameEdit()">✏️ 名前</button>
+      <button onclick="openSettingsModal()">⚙️ 設定</button>
+    </div>
+  </div>
+
+  <div class="name-edit-section" id="nameEditSection" style="display:none; margin-top: 12px;">
+    <div class="name-edit-card">
+      <div class="name-inputs">
+        <div class="name-input-group">
+          <label>ユーザー1の名前</label>
+          <input type="text" id="name1Input" placeholder="例: たろう" oninput="saveName(1, this.value)">
+        </div>
+        <div class="name-input-group">
+          <label>ユーザー2の名前</label>
+          <input type="text" id="name2Input" placeholder="例: はなこ" oninput="saveName(2, this.value)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary-section">
+    <div class="summary-card">
+      <div class="label">📅 今週の合計</div>
+      <div class="value" id="weekTotal">¥0</div>
+      <div class="count" id="weekCount">0回</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">📊 今月の合計</div>
+      <div class="value" id="monthTotal">¥0</div>
+      <div class="count" id="monthCount">0回</div>
+    </div>
+  </div>
+
+  <div class="calendar-section">
+    <div class="calendar-card">
+      <div class="cal-nav">
+        <button onclick="changeMonth(-1)">◀</button>
+        <span class="month-label" id="monthLabel"></span>
+        <button onclick="changeMonth(1)">▶</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div>弁当+おにぎり</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>弁当のみ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9c27b0"></div>おにぎりのみ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#999"></div>不要</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="week-section">
+    <div class="section-title">📋 今週のお弁当</div>
+    <div class="week-list" id="weekList"></div>
+  </div>
+
+  <div class="line-section">
+    <div class="section-title">💬 LINE共有</div>
+    <div class="line-card">
+      <button class="line-share-btn green" onclick="shareWeekToLine()">
+        <svg style="width:22px;height:22px" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+        今週のまとめをLINEで送る
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Entry Modal -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>🍱 お弁当を記録</h2>
+    <div class="modal-date" id="modalDate"></div>
+    <div class="user-select" id="userSelect"></div>
+    <div class="bento-options">
+      <div class="bento-option" data-type="1" onclick="selectType(1)">
+        <span class="emoji">🍱🍙</span>
+        <div class="opt-info"><div class="opt-name">お弁当＋おにぎり</div><div class="opt-desc">しっかり食べたい日に</div></div>
+        <div class="opt-price">¥400</div>
+      </div>
+      <div class="bento-option" data-type="2" onclick="selectType(2)">
+        <span class="emoji">🍱</span>
+        <div class="opt-info"><div class="opt-name">お弁当のみ</div><div class="opt-desc">いつもの定番</div></div>
+        <div class="opt-price">¥300</div>
+      </div>
+      <div class="bento-option" data-type="3" onclick="selectType(3)">
+        <span class="emoji">🍙</span>
+        <div class="opt-info"><div class="opt-name">おにぎりのみ</div><div class="opt-desc">軽めにしたい日に</div></div>
+        <div class="opt-price">¥100</div>
+      </div>
+      <div class="bento-option" data-type="0" onclick="selectType(0)">
+        <span class="emoji">❌</span>
+        <div class="opt-info"><div class="opt-name">弁当不要</div><div class="opt-desc">今日はいらない日</div></div>
+        <div class="opt-price">¥0</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEntry()">保存</button>
+    </div>
+    <button class="btn-delete-entry" id="btnDeleteEntry" style="display:none" onclick="deleteEntry()">🗑 この記録を削除</button>
+  </div>
+</div>
+
+<!-- Week Batch Modal -->
+<div class="modal-overlay" id="batchModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>📅 週まとめ入力</h2>
+    <div class="modal-date" id="batchWeekLabel"></div>
+    <div class="user-select" id="batchUserSelect"></div>
+    <div id="batchRows"></div>
+    <div class="batch-total">
+      <span>週合計</span>
+      <span class="total-price" id="batchTotalPrice">¥0</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeBatchModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveBatch()">まとめて保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>⚙️ 設定</h2>
+    <div style="margin-top:16px">
+      <div class="settings-item"><div><div class="si-label">接続状態</div><div class="si-value" id="settingsStatus">-</div></div></div>
+      <div class="settings-item"><div><div class="si-label">データベースURL</div><div class="si-value" id="settingsDbUrl" style="word-break:break-all">-</div></div></div>
+      <div class="settings-item"><div><div class="si-label">ルームID</div><div class="si-value" id="settingsRoomId">-</div></div></div>
+      <div class="settings-item">
+        <div style="flex:1"><div class="si-label">共有リンクをLINEで送る</div><div class="si-value">相手にアプリURLと設定情報を送ります</div></div>
+        <button onclick="shareSetupToLine()">LINEで送る</button>
+      </div>
+      <div class="settings-item">
+        <div style="flex:1"><div class="si-label">設定をリセット</div></div>
+        <button onclick="resetSetup()" style="background:#fde8e8;color:#e74c3c;">リセット</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-cancel" onclick="closeSettingsModal()" style="flex:1">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PRICES = { 0: 0, 1: 400, 2: 300, 3: 100 };
+const TYPE_NAMES = { 0: '弁当不要', 1: 'お弁当＋おにぎり', 2: 'お弁当のみ', 3: 'おにぎりのみ' };
+const TYPE_EMOJI = { 0: '❌', 1: '🍱🍙', 2: '🍱', 3: '🍙' };
+const DOW = ['日','月','火','水','木','金','土'];
+
+let currentYear, currentMonth;
+let selectedDate = null;
+let selectedType = null;
+let selectedUser = 'user1';
+let batchUser = 'user1';
+let entries = {};
+let userNames = { user1: 'ユーザー1', user2: 'ユーザー2' };
+let dbUrl = '', roomId = '', isOnline = false, syncTimer = null;
+
+function init() {
+  dbUrl = localStorage.getItem('bento_db_url') || '';
+  roomId = localStorage.getItem('bento_room_id') || '';
+  if (!dbUrl || !roomId) showSetupScreen();
+  else showMainApp();
+}
+
+function showSetupScreen() {
+  document.getElementById('setupScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  if (dbUrl) document.getElementById('setupDbUrl').value = dbUrl;
+  if (roomId) document.getElementById('setupRoomId').value = roomId;
+}
+
+function showMainApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  const saved = localStorage.getItem('bento_names');
+  if (saved) userNames = JSON.parse(saved);
+  document.getElementById('name1Input').value = userNames.user1;
+  document.getElementById('name2Input').value = userNames.user2;
+  loadLocal();
+  renderAll();
+  if (dbUrl && roomId) { syncFromCloud(); startSyncLoop(); }
+  else setSyncStatus('offline');
+}
+
+function renderAll() { renderCalendar(); updateSummary(); renderWeekList(); }
+
+async function completeSetup() {
+  const url = document.getElementById('setupDbUrl').value.trim().replace(/\/+$/, '');
+  const room = document.getElementById('setupRoomId').value.trim();
+  const errEl = document.getElementById('setupError');
+  if (!url) { errEl.textContent = 'データベースURLを入力してください'; errEl.style.display = 'block'; return; }
+  if (!url.includes('firebaseio.com') && !url.includes('firebasedatabase.app')) { errEl.textContent = 'Firebase のURLを入力してください'; errEl.style.display = 'block'; return; }
+  if (!room) { errEl.textContent = 'ルームIDを入力してください'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  document.getElementById('setupBtn').disabled = true;
+  document.getElementById('setupBtn').textContent = '接続確認中...';
+  try {
+    const res = await fetch(url + '/bento_rooms/' + encodeURIComponent(room) + '/ping.json', { method: 'PUT', body: JSON.stringify(Date.now()), headers: { 'Content-Type': 'application/json' } });
+    if (!res.ok) throw new Error();
+    dbUrl = url; roomId = room;
+    localStorage.setItem('bento_db_url', dbUrl);
+    localStorage.setItem('bento_room_id', roomId);
+    showMainApp();
+  } catch (e) {
+    errEl.textContent = '接続できませんでした。URLとルールを確認してください。';
+    errEl.style.display = 'block';
+    document.getElementById('setupBtn').disabled = false;
+    document.getElementById('setupBtn').textContent = 'アプリを始める';
+  }
+}
+function skipSetup() { dbUrl = ''; roomId = ''; localStorage.removeItem('bento_db_url'); localStorage.removeItem('bento_room_id'); showMainApp(); }
+function resetSetup() { localStorage.removeItem('bento_db_url'); localStorage.removeItem('bento_room_id'); if (syncTimer) clearInterval(syncTimer); closeSettingsModal(); dbUrl = ''; roomId = ''; showSetupScreen(); }
+
+// CLOUD SYNC
+function getDbPath() { return dbUrl + '/bento_rooms/' + encodeURIComponent(roomId); }
+function setSyncStatus(s) {
+  const dot = document.getElementById('syncDot'), text = document.getElementById('syncText');
+  dot.className = 'sync-dot ' + s;
+  if (s === 'online') { text.textContent = 'クラウド同期中'; isOnline = true; }
+  else if (s === 'syncing') { text.textContent = '同期中...'; }
+  else { text.textContent = dbUrl ? '接続エラー' : 'オフライン'; isOnline = false; }
+}
+async function syncToCloud() {
+  if (!dbUrl || !roomId) return;
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(getDbPath() + '/data.json', { method: 'PUT', body: JSON.stringify({ entries, names: userNames, updated: Date.now() }), headers: { 'Content-Type': 'application/json' } });
+    if (!res.ok) throw new Error();
+    setSyncStatus('online');
+  } catch (e) { setSyncStatus('offline'); }
+}
+async function syncFromCloud() {
+  if (!dbUrl || !roomId) return;
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(getDbPath() + '/data.json');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data && data.entries) {
+      if (JSON.stringify(data.entries) !== JSON.stringify(entries)) { entries = data.entries; saveLocal(); renderAll(); }
+      if (data.names) { userNames = data.names; localStorage.setItem('bento_names', JSON.stringify(userNames)); document.getElementById('name1Input').value = userNames.user1; document.getElementById('name2Input').value = userNames.user2; }
+    }
+    setSyncStatus('online');
+  } catch (e) { setSyncStatus('offline'); }
+}
+function startSyncLoop() { if (syncTimer) clearInterval(syncTimer); syncTimer = setInterval(() => syncFromCloud(), 5000); }
+
+// LOCAL
+function loadLocal() { const s = localStorage.getItem('bento_entries'); entries = s ? JSON.parse(s) : {}; }
+function saveLocal() { localStorage.setItem('bento_entries', JSON.stringify(entries)); }
+function saveEntries() { saveLocal(); syncToCloud(); }
+
+// NAMES
+function saveName(num, val) { userNames['user'+num] = val || ('ユーザー'+num); localStorage.setItem('bento_names', JSON.stringify(userNames)); renderWeekList(); syncToCloud(); }
+function toggleNameEdit() { const s = document.getElementById('nameEditSection'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
+
+// CALENDAR
+function changeMonth(d) { currentMonth += d; if (currentMonth > 11) { currentMonth = 0; currentYear++; } if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(); }
+function renderCalendar() {
+  document.getElementById('monthLabel').textContent = `${currentYear}年${currentMonth+1}月`;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  ['日','月','火','水','木','金','土'].forEach(d => { grid.innerHTML += `<div class="cal-header">${d}</div>`; });
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  const today = new Date();
+  for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(currentYear, currentMonth, d).getDay();
+    const isToday = today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d;
+    let dotHtml = '';
+    if (entries[dateStr] && entries[dateStr].length > 0) {
+      const types = [...new Set(entries[dateStr].map(e => e.type))];
+      dotHtml = '<div style="display:flex;gap:2px;margin-top:3px">';
+      types.forEach(t => { dotHtml += `<div class="day-dot type-${t}"></div>`; });
+      dotHtml += '</div>';
+    }
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (dow === 0) cls += ' sunday';
+    if (dow === 6) cls += ' saturday';
+    grid.innerHTML += `<div class="${cls}" onclick="openModal('${dateStr}')"><div class="day-num">${d}</div>${dotHtml}</div>`;
+  }
+}
+
+// ENTRY MODAL
+function openModal(dateStr) {
+  selectedDate = dateStr; selectedType = null;
+  const d = new Date(dateStr + 'T00:00:00');
+  document.getElementById('modalDate').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DOW[d.getDay()]}）`;
+  document.getElementById('userSelect').innerHTML = `
+    <button class="${selectedUser==='user1'?'active':''}" onclick="selectUser('user1')">${userNames.user1}</button>
+    <button class="${selectedUser==='user2'?'active':''}" onclick="selectUser('user2')">${userNames.user2}</button>`;
+  document.querySelectorAll('.bento-option').forEach(o => o.classList.remove('selected'));
+  const ex = entries[dateStr], ue = ex && ex.find(e => e.user === selectedUser);
+  if (ue) { selectedType = ue.type; document.querySelector(`.bento-option[data-type="${ue.type}"]`).classList.add('selected'); document.getElementById('btnDeleteEntry').style.display = 'block'; }
+  else { document.getElementById('btnDeleteEntry').style.display = 'none'; }
+  document.getElementById('entryModal').classList.add('show');
+}
+function selectUser(u) {
+  selectedUser = u;
+  document.querySelectorAll('#userSelect button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.bento-option').forEach(o => o.classList.remove('selected'));
+  selectedType = null;
+  const ex = entries[selectedDate], ue = ex && ex.find(e => e.user === selectedUser);
+  if (ue) { selectedType = ue.type; document.querySelector(`.bento-option[data-type="${ue.type}"]`).classList.add('selected'); document.getElementById('btnDeleteEntry').style.display = 'block'; }
+  else { document.getElementById('btnDeleteEntry').style.display = 'none'; }
+}
+function selectType(t) { selectedType = t; document.querySelectorAll('.bento-option').forEach(o => o.classList.remove('selected')); document.querySelector(`.bento-option[data-type="${t}"]`).classList.add('selected'); }
+function closeModal() { document.getElementById('entryModal').classList.remove('show'); }
+function saveEntry() {
+  if (selectedType === null) { showToast('お弁当の種類を選んでください'); return; }
+  if (!entries[selectedDate]) entries[selectedDate] = [];
+  const idx = entries[selectedDate].findIndex(e => e.user === selectedUser);
+  const entry = { type: selectedType, user: selectedUser, price: PRICES[selectedType] };
+  if (idx >= 0) entries[selectedDate][idx] = entry; else entries[selectedDate].push(entry);
+  saveEntries(); closeModal(); renderAll(); showToast('保存しました');
+}
+function deleteEntry() {
+  if (!entries[selectedDate]) return;
+  entries[selectedDate] = entries[selectedDate].filter(e => e.user !== selectedUser);
+  if (entries[selectedDate].length === 0) delete entries[selectedDate];
+  saveEntries(); closeModal(); renderAll(); showToast('削除しました');
+}
+function deleteEntryDirect(ds, u) {
+  if (!entries[ds]) return;
+  entries[ds] = entries[ds].filter(e => e.user !== u);
+  if (entries[ds].length === 0) delete entries[ds];
+  saveEntries(); renderAll(); showToast('削除しました');
+}
+
+// WEEK BATCH MODAL
+function openBatchModal() {
+  const week = getWeekRange(new Date());
+  const startStr = `${week.start.getMonth()+1}/${week.start.getDate()}`;
+  const endStr = `${week.end.getMonth()+1}/${week.end.getDate()}`;
+  document.getElementById('batchWeekLabel').textContent = `${startStr}（月）〜 ${endStr}（日）`;
+  document.getElementById('batchUserSelect').innerHTML = `
+    <button class="${batchUser==='user1'?'active':''}" onclick="selectBatchUser('user1')">${userNames.user1}</button>
+    <button class="${batchUser==='user2'?'active':''}" onclick="selectBatchUser('user2')">${userNames.user2}</button>`;
+  renderBatchRows();
+  document.getElementById('batchModal').classList.add('show');
+}
+function closeBatchModal() { document.getElementById('batchModal').classList.remove('show'); }
+function selectBatchUser(u) {
+  batchUser = u;
+  document.querySelectorAll('#batchUserSelect button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderBatchRows();
+}
+function renderBatchRows() {
+  const week = getWeekRange(new Date());
+  let html = '';
+  for (let d = new Date(week.start); d <= week.end; d.setDate(d.getDate()+1)) {
+    const dateStr = formatDateStr(d);
+    const dow = d.getDay();
+    const existing = entries[dateStr] && entries[dateStr].find(e => e.user === batchUser);
+    const currentType = existing ? existing.type : '';
+    const price = existing ? PRICES[existing.type] : 0;
+    const dateColor = dow === 0 ? 'color:#e74c3c' : dow === 6 ? 'color:#3498db' : '';
+    html += `<div class="batch-row">
+      <div class="batch-date" style="${dateColor}">
+        ${d.getMonth()+1}/${d.getDate()}<div class="batch-dow">${DOW[dow]}</div>
+      </div>
+      <select class="batch-select" data-date="${dateStr}" onchange="updateBatchTotal()">
+        <option value="">-- 選択 --</option>
+        <option value="1" ${currentType===1?'selected':''}>🍱🍙 弁当+おにぎり</option>
+        <option value="2" ${currentType===2?'selected':''}>🍱 弁当のみ</option>
+        <option value="3" ${currentType===3?'selected':''}>🍙 おにぎりのみ</option>
+        <option value="0" ${currentType===0?'selected':''}>❌ 弁当不要</option>
+      </select>
+      <div class="batch-price" data-date="${dateStr}-price">¥${price}</div>
+    </div>`;
+  }
+  document.getElementById('batchRows').innerHTML = html;
+  updateBatchTotal();
+}
+function updateBatchTotal() {
+  let total = 0;
+  document.querySelectorAll('.batch-select').forEach(sel => {
+    const val = sel.value;
+    const price = val !== '' ? PRICES[parseInt(val)] : 0;
+    const dateStr = sel.dataset.date;
+    document.querySelector(`[data-date="${dateStr}-price"]`).textContent = val !== '' ? `¥${price}` : '¥0';
+    total += price;
+  });
+  document.getElementById('batchTotalPrice').textContent = `¥${total.toLocaleString()}`;
+}
+function saveBatch() {
+  document.querySelectorAll('.batch-select').forEach(sel => {
+    const dateStr = sel.dataset.date;
+    const val = sel.value;
+    if (val === '') {
+      if (entries[dateStr]) {
+        entries[dateStr] = entries[dateStr].filter(e => e.user !== batchUser);
+        if (entries[dateStr].length === 0) delete entries[dateStr];
+      }
+    } else {
+      const type = parseInt(val);
+      if (!entries[dateStr]) entries[dateStr] = [];
+      const idx = entries[dateStr].findIndex(e => e.user === batchUser);
+      const entry = { type, user: batchUser, price: PRICES[type] };
+      if (idx >= 0) entries[dateStr][idx] = entry; else entries[dateStr].push(entry);
+    }
+  });
+  saveEntries(); closeBatchModal(); renderAll(); showToast('まとめて保存しました');
+}
+
+// SUMMARY
+function getWeekRange(date) {
+  const d = new Date(date); const day = d.getDay();
+  const mon = new Date(d); mon.setDate(d.getDate()-((day+6)%7)); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  return { start: mon, end: sun };
+}
+function formatDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function updateSummary() {
+  const now = new Date(), week = getWeekRange(now);
+  let wT=0,wC=0,mT=0,mC=0;
+  Object.keys(entries).forEach(ds => {
+    const d = new Date(ds+'T00:00:00');
+    entries[ds].forEach(e => {
+      if (d>=week.start && d<=week.end) { wT+=e.price; wC++; }
+      if (d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth()) { mT+=e.price; mC++; }
+    });
+  });
+  document.getElementById('weekTotal').textContent = `¥${wT.toLocaleString()}`;
+  document.getElementById('weekCount').textContent = `${wC}回`;
+  document.getElementById('monthTotal').textContent = `¥${mT.toLocaleString()}`;
+  document.getElementById('monthCount').textContent = `${mC}回`;
+}
+function renderWeekList() {
+  const list = document.getElementById('weekList'), week = getWeekRange(new Date());
+  let items = [];
+  for (let d = new Date(week.start); d <= week.end; d.setDate(d.getDate()+1)) {
+    const ds = formatDateStr(d);
+    if (entries[ds]) entries[ds].forEach(e => { items.push({ date: new Date(d), dateStr: ds, ...e }); });
+  }
+  if (items.length === 0) { list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-light);font-size:14px;">今週の記録はまだありません<br>カレンダーをタップ or「週まとめ入力」で記録</div>'; return; }
+  items.sort((a,b) => a.date - b.date);
+  list.innerHTML = items.map(i => `
+    <div class="week-item">
+      <div class="left">
+        <div class="date-badge type-${i.type}"><span class="d">${i.date.getDate()}</span><span class="dow">${DOW[i.date.getDay()]}</span></div>
+        <div class="info"><div class="bento-type">${TYPE_EMOJI[i.type]} ${TYPE_NAMES[i.type]}</div><div class="bento-user">${userNames[i.user]}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <div class="price">¥${i.price}</div>
+        <button class="delete-btn" onclick="deleteEntryDirect('${i.dateStr}','${i.user}')">×</button>
+      </div>
+    </div>`).join('');
+}
+
+// LINE
+function shareWeekToLine() {
+  const now = new Date(), week = getWeekRange(now);
+  const s = `${week.start.getMonth()+1}/${week.start.getDate()}`, e = `${week.end.getMonth()+1}/${week.end.getDate()}`;
+  let lines = [`🍱 お弁当記録（${s}〜${e}）`,'']; let items = [];
+  let tU = {user1:0,user2:0}, cU = {user1:0,user2:0};
+  for (let d = new Date(week.start); d <= week.end; d.setDate(d.getDate()+1)) {
+    const ds = formatDateStr(d);
+    if (entries[ds]) entries[ds].forEach(en => { items.push({date:new Date(d),...en}); tU[en.user]+=en.price; cU[en.user]++; });
+  }
+  if (!items.length) { lines.push('今週の記録はまだありません。'); }
+  else {
+    items.sort((a,b) => a.date-b.date);
+    items.forEach(i => { lines.push(`${i.date.getMonth()+1}/${i.date.getDate()}(${DOW[i.date.getDay()]}) ${userNames[i.user]}：${TYPE_NAMES[i.type]} ¥${i.price}`); });
+    lines.push('','--- 合計 ---');
+    if (cU.user1>0) lines.push(`${userNames.user1}：¥${tU.user1.toLocaleString()}（${cU.user1}回）`);
+    if (cU.user2>0) lines.push(`${userNames.user2}：¥${tU.user2.toLocaleString()}（${cU.user2}回）`);
+    lines.push(`合計：¥${(tU.user1+tU.user2).toLocaleString()}`);
+  }
+  window.open('https://line.me/R/share?text='+encodeURIComponent(lines.join('\n')),'_blank');
+}
+function shareSetupToLine() {
+  const text = `🍱 お弁当管理アプリ\n\n下のURLを開いてね：\n${window.location.href}\n\nセットアップ画面でこれを入力してね：\n\nデータベースURL:\n${dbUrl}\n\nルームID:\n${roomId}`;
+  window.open('https://line.me/R/share?text='+encodeURIComponent(text),'_blank');
+}
+
+// SETTINGS
+function openSettingsModal() {
+  document.getElementById('settingsStatus').textContent = isOnline ? 'クラウド同期中' : (dbUrl ? '接続エラー' : 'オフライン');
+  document.getElementById('settingsDbUrl').textContent = dbUrl || '未設定';
+  document.getElementById('settingsRoomId').textContent = roomId || '未設定';
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
+
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+document.getElementById('entryModal').addEventListener('click', function(e) { if (e.target===this) closeModal(); });
+document.getElementById('batchModal').addEventListener('click', function(e) { if (e.target===this) closeBatchModal(); });
+document.getElementById('settingsModal').addEventListener('click', function(e) { if (e.target===this) closeSettingsModal(); });
+
+init();
+</script>
+</body>
+</html>
